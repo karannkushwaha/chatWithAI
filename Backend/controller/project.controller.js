@@ -20,3 +20,36 @@ export const createProject = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const getAllProjects = async (req, res) => {
+  try {
+    const loggedInUser = await userModel.findOne({ email: req.user.email });
+    const projects = await projectService.getAllProjectsByUserID({
+      userID: loggedInUser._id,
+    });
+    res.status(200).json({ Projects: projects });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const addUserToProject = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  try {
+    const { projectID, users } = req.body;
+    const loggedInUser = await userModel.findOne({ email: req.user.email });
+    const updatedProject = await projectService.addUserToProject({
+      projectID,
+      users,
+      userID: loggedInUser._id,
+    });
+    res.status(200).json(updatedProject);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};
