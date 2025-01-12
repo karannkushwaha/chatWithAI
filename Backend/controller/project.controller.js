@@ -47,7 +47,18 @@ export const addUserToProject = async (req, res) => {
       users,
       userID: loggedInUser._id,
     });
-    res.status(200).json(updatedProject);
+    res.status(200).json({ updatedProject });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getProjectById = async (req, res) => {
+  const { projectID } = req.params;
+  try {
+    const project = await projectService.getProjectById({ projectID });
+    return res.status(200).json({ project });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: error.message });

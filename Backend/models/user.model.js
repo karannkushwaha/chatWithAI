@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+
 const userSchema = new mongoose.Schema({
   email: {
     type: String,
@@ -11,7 +12,7 @@ const userSchema = new mongoose.Schema({
     minLength: [6, "Email must be at least 6 characters"],
     maxLength: [50, "Email must be at most 50 characters"],
   },
-  password: { type: String, select: false },
+  password: { type: String, required: true, select: false },
 });
 
 userSchema.statics.hasPassword = async function (password) {
@@ -28,6 +29,6 @@ userSchema.methods.generateToken = function () {
   });
 };
 
-const User = mongoose.model("user", userSchema);
+const User = mongoose.model("User", userSchema);
 
 export default User;
