@@ -7,8 +7,8 @@ const Project = () => {
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState([]);
-
   const [usersList, setUsersList] = useState([]);
+  const [projectID, setProjectID] = useState(location.state);
 
   const handleUserClick = (id) => {
     if (!selectedUserId.includes(id)) {
@@ -45,6 +45,15 @@ const Project = () => {
 
   useEffect(() => {
     axiosInstance
+      .get(`/project/getProject/${location.state._id}`)
+      .then((res) => {
+        setProjectID(res.data.project || []);
+      })
+      .catch((error) => {
+        console.error("Error fetching users:", error);
+      });
+
+    axiosInstance
       .get("/user/all")
       .then((res) => {
         setUsersList(res.data.users || []);
@@ -54,7 +63,6 @@ const Project = () => {
       });
   }, []);
 
-  // console.log(location.state);
   if (!location.state) {
     return <div>No project data available.</div>;
   }
@@ -114,7 +122,8 @@ const Project = () => {
             isSidePanelOpen ? "translate-x-0" : "-translate-x-full"
           } top-0`}
         >
-          <header className="flex justify-end px-3 p-2 bg-slate-200">
+          <header className="flex justify-between items-center px-3 p-2 bg-slate-200">
+            <h1 className="font-semibold text-lg">Collaborator</h1>
             <button
               onClick={() => setIsSidePanelOpen(!isSidePanelOpen)}
               className="p-2"
@@ -123,12 +132,18 @@ const Project = () => {
             </button>
           </header>
           <div className="users flex flex-col gap-2">
-            <div className="chartUser cursor-pointer hover:bg-slate-200 p-2 flex gap-2 items-center">
-              <div className="aspect-square rounded-full w-fit h-fit p-5 text-white flex items-center justify-center bg-slate-600">
-                <i className="ri-user-fill absolute"></i>
-              </div>
-              <h1 className="font-semibold text-lg">Usersname</h1>
-            </div>
+            {projectID.users &&
+              projectID.users.map((user, index) => (
+                <div
+                  key={user._id || index}
+                  className="chartUser cursor-pointer hover:bg-slate-200 p-2 flex gap-2 items-center"
+                >
+                  <div className="aspect-square rounded-full w-fit h-fit p-5 text-white flex items-center justify-center bg-slate-600">
+                    <i className="ri-user-fill absolute"></i>
+                  </div>
+                  <h1 className="font-semibold text-lg">{user.email}</h1>
+                </div>
+              ))}
           </div>
         </div>
       </section>
