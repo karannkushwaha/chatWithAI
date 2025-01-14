@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import axiosInstance from "../config/axios";
+import {
+  initializeSocket,
+  receiveMessage,
+  sendMessage,
+} from "../config/socket";
+
 const Project = () => {
   const location = useLocation();
 
@@ -44,6 +50,7 @@ const Project = () => {
   };
 
   useEffect(() => {
+    initializeSocket();
     axiosInstance
       .get(`/project/getProject/${location.state._id}`)
       .then((res) => {
