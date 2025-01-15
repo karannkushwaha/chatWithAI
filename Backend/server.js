@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import projectModel from "./models/project.model.js";
 import userModel from "../Backend/models/user.model.js";
+import { generateAIContent } from "./services/geminiAI.service.js";
 
 const port = process.env.PORT || 8000;
 const server = http.createServer(app);
@@ -72,7 +73,29 @@ io.on("connection", (socket) => {
         console.error(`Socket ${socket.id} has no room to broadcast to.`);
         return;
       }
+
+      const aiIsPresentInMessage = data.message.includes("@ai");
       socket.broadcast.to(roomID).emit("project-message", data);
+
+      if (aiIsPresentInMessage) {
+        const prompt = data.message.replace("@ai", "");
+        const result = await generateAIContent(prompt);
+
+        // socket.emit("project-message", {
+        //   senderEmail: "AI",
+        //   message: result,
+        // });
+
+        io.to(roomID).emit("project-message", {
+          message: result,
+          sender: {
+            email: "AI",
+            _id: "ai",
+            __v: 0,
+          },
+        });
+        return;
+      }
     } catch (error) {
       console.error("Error fetching user email:", error);
     }
