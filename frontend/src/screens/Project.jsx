@@ -1,6 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import axiosInstance from "../config/axios";
+
+import { UserContext } from "../context/user.context";
+
 import {
   initializeSocket,
   receiveMessage,
@@ -15,6 +18,10 @@ const Project = () => {
   const [selectedUserId, setSelectedUserId] = useState([]);
   const [usersList, setUsersList] = useState([]);
   const [projectID, setProjectID] = useState(location.state);
+  const [message, setMessage] = useState("");
+  const { user } = useContext(UserContext);
+
+  const messageBox = useRef();
 
   const handleUserClick = (id) => {
     if (!selectedUserId.includes(id)) {
@@ -49,8 +56,33 @@ const Project = () => {
     }
   };
 
+  const sendMessages = () => {
+    if (!user || !user._id) {
+      console.error("User is not available or invalid.");
+      return;
+    }
+
+    if (!message.trim()) {
+      console.warn("Message cannot be empty.");
+      return;
+    }
+
+    const messageObj = {
+      senderEmail: user.email,
+      message: message,
+    };
+    sendMessage("project-message", { message, sender: user });
+    appendOutgoingMsg(messageObj);
+    setMessage("");
+  };
+
   useEffect(() => {
-    initializeSocket();
+    initializeSocket(location.state._id);
+
+    receiveMessage("project-message", (data) => {
+      appendIncomingMsg(data);
+    });
+
     axiosInstance
       .get(`/project/getProject/${location.state._id}`)
       .then((res) => {
@@ -70,14 +102,61 @@ const Project = () => {
       });
   }, []);
 
+  const appendIncomingMsg = (messageObj) => {
+    const messageBox = document.querySelector(".message-box");
+    const message = document.createElement("div");
+    message.classList.add(
+      "message",
+      "max-w-65",
+      "flex",
+      "flex-col",
+      "p-2",
+      "bg-slate-50",
+      "w-fit",
+      "rounded-md"
+    );
+    message.innerHTML = `
+    <small class="opacity-65 text-xs">${messageObj.senderEmail}</small>
+    <p class="text-sm">${messageObj.message}</p>
+  `;
+    messageBox.appendChild(message);
+    scrollToBottom();
+  };
+
+  const appendOutgoingMsg = (messageObj) => {
+    const messageBox = document.querySelector(".message-box");
+
+    const message = document.createElement("div");
+    message.classList.add(
+      "ml-auto",
+      "max-w-65",
+      "flex",
+      "flex-col",
+      "p-2",
+      "bg-slate-50",
+      "w-fit",
+      "rounded-md"
+    );
+    message.innerHTML = `
+    <small class="opacity-65 text-xs">${messageObj.senderEmail}</small>
+    <p class="text-sm">${messageObj.message}</p>
+  `;
+    messageBox.appendChild(message);
+    scrollToBottom();
+  };
+
+  const scrollToBottom = () => {
+    messageBox.current.scrollTop = messageBox.current.scrollHeight;
+  };
+
   if (!location.state) {
     return <div>No project data available.</div>;
   }
 
   return (
     <main className="h-screen w-screen flex">
-      <section className="left relative flex flex-col h-full min-w-96 bg-slate-300">
-        <header className="flex justify-between items-center p-2 px-4 w-full bg-slate-100">
+      <section className="left relative flex flex-col h-screen min-w-96 bg-slate-300">
+        <header className="flex justify-between items-center p-2 px-4 w-full bg-slate-100 absolute top-0">
           <button className="flex gap-2" onClick={() => setIsModalOpen(true)}>
             <i className="ri-add-fill mr-1"></i>
             <p>Add collaborator </p>
@@ -90,35 +169,28 @@ const Project = () => {
             <i className="ri-group-fill"></i>
           </button>
         </header>
-
-        <div className="conversation-area flex-grow flex flex-col">
-          <div className="message-box p-1 flex-grow flex flex-col gap-1">
-            <div className="max-w-56 message flex flex-col p-2 bg-slate-50 w-fit rounded-md">
-              <small className="opacity-65 text-xs">demo@demo.com</small>
-              <p className="text-sm">
-                Lorem ipsum dolor sit amet consectetur adipisicing elit. Sequi
-                corrupti aliquam fugit eveniet ab, nesciunt quam ullam ducimus
-                optio minima eligendi odio nobis nostrum culpa et, quo
-                perferendis qui veniam?
-              </p>
-            </div>
-            <div className="ml-auto max-w-56 message flex flex-col p-2 bg-slate-50 w-fit rounded-md">
-              <small className="opacity-65 text-xs">demo@demo.com</small>
-              <p className="text-sm">
-                Lorem ipsum dolor sit amet consectetur adipisicing elit. Sint
-                consequuntur at laboriosam corporis perferendis! Ipsam nesciunt
-                expedita veniam quisquam, velit architecto magnam laborum nemo
-                nihil similique id recusandae alias rem.
-              </p>
-            </div>
-          </div>
-          <div className="inputField w-full flex">
+        <div className="conversation-area pt-14 pb-10 flex-grow flex flex-col h-full relative">
+          <div
+            ref={messageBox}
+            className="message-box p-1 flex-grow flex flex-col gap-1 overflow-auto max-h-full scrollbar-hide"
+          ></div>
+          <div className="inputField w-full flex absolute bottom-0">
             <input
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  sendMessages();
+                }
+              }}
               className="p-2 px-4 border-none outline-none flex-grow"
               type="text"
               placeholder="Enter message"
             />
-            <button className="px-5 bg-slate-950 text-white">
+            <button
+              onClick={sendMessages}
+              className="px-5 bg-slate-950 text-white"
+            >
               <i className="ri-send-plane-fill"></i>
             </button>
           </div>

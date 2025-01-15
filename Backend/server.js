@@ -3,43 +3,84 @@ import http from "http";
 import app from "./app.js";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+import projectModel from "./models/project.model.js";
+import userModel from "../Backend/models/user.model.js";
 
 const port = process.env.PORT || 8000;
 const server = http.createServer(app);
 
 const io = new Server(server, { cors: { origin: "*" } });
 
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   try {
     const token =
       socket.handshake.auth?.token ||
       socket.handshake.headers.authorization?.split(" ")[1];
 
+    const projectId = socket.handshake.query.projectId;
+
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      console.error("Invalid ProjectID:", projectId);
+      return next(new Error("Invalid ProjectID"));
+    }
+
+    const project = await projectModel.findById(projectId);
+    if (!project) {
+      console.error("Project not found:", projectId);
+      return next(new Error("Project not found"));
+    }
+
     if (!token) {
-      return next(new Error("Token is missing or invalid"));
+      console.error("Token is missing.");
+      return next(new Error("Token is missing."));
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
     if (!decoded) {
-      return next(new Error("Token verification failed"));
+      console.error("Token verification failed.");
+      return next(new Error("Authentication error: Invalid token."));
     }
 
+    socket.project = project;
     socket.user = decoded;
     next();
   } catch (error) {
-    console.error("Error during token validation:", error);
+    console.error("Error during socket authentication:", error);
     next(new Error("Authentication error: " + error.message));
   }
 });
 
 io.on("connection", (socket) => {
-  console.log("socket in");
-  socket.on("event", (data) => {
-    /* … */
+  if (!socket.project || !socket.project._id) {
+    console.error(`Socket ${socket.id} has no valid project assigned.`);
+    return;
+  }
+  const roomID = socket.project._id.toString();
+  socket.join(roomID);
+
+  socket.on("project-message", async (data) => {
+    try {
+      const user = await userModel.findById(data.sender._id);
+
+      if (!user) {
+        console.error(`User with id ${data.sender._id} not found.`);
+        return;
+      }
+      data.senderEmail = user.email;
+      if (!roomID) {
+        console.error(`Socket ${socket.id} has no room to broadcast to.`);
+        return;
+      }
+      socket.broadcast.to(roomID).emit("project-message", data);
+    } catch (error) {
+      console.error("Error fetching user email:", error);
+    }
   });
+
   socket.on("disconnect", () => {
-    /* … */
+    console.log(`Socket disconnected: ${socket.id} from room: ${roomID}`);
+    socket.leave(socket.roomID);
   });
 });
 

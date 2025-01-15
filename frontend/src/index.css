@@ -13,3 +13,11 @@ body {
   width: 100%;
   width: 100%;
 }
+
+.message-box {
+  scroll-behavior: smooth;
+}
+
+.message-box::-webkit-scrollbar {
+  display: none;
+}
